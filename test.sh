@@ -16,13 +16,13 @@ done
 
 echo "${RUNNING}git diff${RESET}"
 RET_DIFF=$(git diff --no-prefix HEAD 2>&1)
-if [[ ! -z "$RET_DIFF" ]]; then echo "$RET_DIFF"; echo; fi
+if [ ! -z "$RET_DIFF" ]; then echo "$RET_DIFF"; echo; fi
 
 echo "${RUNNING}git ls-files${RESET}"
 RET_FILES=$(git ls-files --others --exclude-standard 2>&1)
-if [[ ! -z "$RET_FILES" ]]; then echo "$RET_FILES"; echo; fi
+if [ ! -z "$RET_FILES" ]; then echo "$RET_FILES"; echo; fi
 
-if [[ ! -z "$RET_DIFF" ]] || [[ ! -z "$RET_FILES" ]]; then
+if [ ! -z "$RET_DIFF" ] || [ ! -z "$RET_FILES" ]; then
 	echo "${FAIL}${RESET}"; exit 1
 else
 	echo "${PASS}${RESET}"; exit 0
