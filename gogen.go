@@ -11,21 +11,24 @@ import (
 	"os"
 )
 
+// Description includes parsed information of a Go name. It will be used to feed data to the template.
 type Description struct {
 	Name string
 }
 
+// Generator is an execution to generate code. Call Run method to trigger the job.
 type Generator struct {
 	Name         string
 	Output       string
+	Template     string
 	TemplateFile string
 	Writer       io.Writer
 
-	buf      *bytes.Buffer
-	desc     *Description
-	template string
+	buf  *bytes.Buffer
+	desc *Description
 }
 
+// Run executes the generator.
 func (g *Generator) Run() error {
 	log.Println("Generating code for", g.Name)
 
@@ -53,18 +56,22 @@ func (g *Generator) extractDescription() error {
 }
 
 func (g *Generator) loadTemplate() error {
+	if g.Template != "" {
+		return nil
+	}
+
 	content, err := ioutil.ReadFile(g.TemplateFile)
 	if err != nil {
 		return err
 	}
 
-	g.template = string(content)
+	g.Template = string(content)
 	return nil
 }
 
 func (g *Generator) executeTemplate() error {
 	compiledTempl, err := template.New("gogen").
-		Parse(g.template)
+		Parse(g.Template)
 
 	if err != nil {
 		return err
