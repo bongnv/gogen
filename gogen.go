@@ -1,3 +1,4 @@
+// Package gogen includes logic to generate files using Go template.
 package gogen
 
 import (
@@ -5,6 +6,9 @@ import (
 	"errors"
 	"go/ast"
 	"go/types"
+	"html/template"
+	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,17 +18,36 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+var (
+	parseMode = packages.NeedName |
+		packages.NeedFiles |
+		packages.NeedImports |
+		packages.NeedDeps |
+		packages.NeedCompiledGoFiles |
+		packages.NeedTypes |
+		packages.NeedSyntax |
+		packages.NeedTypesInfo
+)
+
+// Description includes parsed information of a Go name. It will be used to feed data to the template.
+type Description struct {
+	Name    string
+	Pkg     Package
+	Methods []*Method
+}
+
+// Generator is an execution to generate code. Call Run method to trigger the job.
 type Generator struct {
-	Debug        bool
 	Dir          string
 	Name         string
+	Output       string
+	Template     string
 	TemplateFile string
-	OutFile      string
+	Writer       io.Writer
 
-	description *Description
-	pkgs        []*packages.Package
-	template    string
-	buf         *bytes.Buffer
+	buf  *bytes.Buffer
+	desc *Description
+	pkgs []*packages.Package
 }
 
 // Method presents a method.
@@ -40,34 +63,20 @@ type Field struct {
 	Type GoType
 }
 
+// GoType presents a Go type.
 type GoType struct {
 	types.Type
 }
 
+// Package presents a Go package.
 type Package struct {
 	Path string
 	Name string
 }
 
-type Description struct {
-	Name    string
-	Pkg     Package
-	Methods []*Method
-}
-
-var (
-	parseMode = packages.NeedName |
-		packages.NeedFiles |
-		packages.NeedImports |
-		packages.NeedDeps |
-		packages.NeedCompiledGoFiles |
-		packages.NeedTypes |
-		packages.NeedSyntax |
-		packages.NeedTypesInfo
-)
-
+// Run executes the generator.
 func (g *Generator) Run() error {
-	log.Println("gogen is called with debugging:", g.Debug)
+	log.Println("Generating code for", g.Name)
 
 	steps := []func() error{
 		g.parseSource,
@@ -146,25 +155,30 @@ func (g *Generator) extractDescription() error {
 }
 
 func (g *Generator) loadTemplate() error {
-	templateContent, err := ioutil.ReadFile(g.TemplateFile)
+	if g.Template != "" {
+		return nil
+	}
+
+	content, err := ioutil.ReadFile(g.TemplateFile)
 	if err != nil {
 		return err
 	}
 
 	g.template = string(templateContent)
+	g.Template = string(content)
 	return nil
 }
 
 func (g *Generator) executeTemplate() error {
-	codeTmpl, err := template.New("default").
-		Parse(g.template)
+	compiledTempl, err := template.New("gogen").
+		Parse(g.Template)
 
 	if err != nil {
 		return err
 	}
 
 	g.buf = new(bytes.Buffer)
-	return codeTmpl.Execute(g.buf, g.description)
+	return codeTmpl.Execute(g.buf, g.desc)
 }
 
 func (g *Generator) formatSource() error {
@@ -187,6 +201,20 @@ func (g *Generator) writeToFile() error {
 
 	_, errWrite := g.buf.WriteTo(f)
 	return errWrite
+}
+
+func (g *Generator) writeToFile() error {
+	if g.Writer != nil {
+		_, err := g.buf.WriteTo(g.Writer)
+		return err
+	}
+
+	if g.Output == "" {
+		_, err := g.buf.WriteTo(os.Stdout)
+		return err
+	}
+
+	return ioutil.WriteFile(g.Output, g.buf.Bytes(), fs.ModePerm)
 }
 
 func extractMethodsFromInterfaces(pkg *packages.Package, i *ast.InterfaceType) []*Method {

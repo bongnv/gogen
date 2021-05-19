@@ -1,24 +1,28 @@
 package main
 
 import (
-	"flag"
-	"log"
-	"os"
-
+	"github.com/alecthomas/kong"
 	"github.com/bongnv/gogen"
 )
 
-func main() {
-	g := &gogen.Generator{}
-	flags := flag.NewFlagSet("gogen", flag.ExitOnError)
-	flags.BoolVar(&g.Debug, "debug", false, "Enable debugging")
-	flags.StringVar(&g.Dir, "dir", ".", "Path to the source code directly")
-	flags.StringVar(&g.Dir, "name", "", "Name of the Go type to be parsed")
-	flags.StringVar(&g.TemplateFile, "tempFile", "", "Path to the template file")
-	flags.StringVar(&g.OutFile, "outFile", "", "Path to the output file")
-	flags.Parse(os.Args[1:])
+var cli struct {
+	Name     string `kong:"arg,required,help='Name of a Go type'"`
+	Template string `kong:"required,type='existingfile',short='t',help='Path to the template file'"`
+	Output   string `kong:"help='Path to the output',short='o'"`
+}
 
-	if err := g.Run(); err != nil {
-		log.Fatalln(err)
+func main() {
+	ctx := kong.Parse(
+		&cli,
+		kong.Name("gogen"),
+		kong.Description("A code generation tool using Go template"),
+	)
+
+	g := &gogen.Generator{
+		Name:         cli.Name,
+		TemplateFile: cli.Template,
+		Output:       cli.Output,
 	}
+
+	ctx.FatalIfErrorf(g.Run())
 }
