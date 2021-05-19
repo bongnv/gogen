@@ -3,21 +3,40 @@ package gogen
 
 import (
 	"bytes"
-	"html/template"
+	"go/ast"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"text/template"
+
+	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/imports"
+)
+
+var (
+	parseMode = packages.NeedName |
+		packages.NeedFiles |
+		packages.NeedImports |
+		packages.NeedDeps |
+		packages.NeedCompiledGoFiles |
+		packages.NeedTypes |
+		packages.NeedSyntax |
+		packages.NeedTypesInfo
 )
 
 // Description includes parsed information of a Go name. It will be used to feed data to the template.
 type Description struct {
 	Name string
+	Pkg  *Package
 }
 
 // Generator is an execution to generate code. Call Run method to trigger the job.
 type Generator struct {
+	Dir          string
+	Format       bool
 	Name         string
 	Output       string
 	Template     string
@@ -26,6 +45,13 @@ type Generator struct {
 
 	buf  *bytes.Buffer
 	desc *Description
+	pkgs []*packages.Package
+}
+
+// Package presents a Go package.
+type Package struct {
+	Path string
+	Name string
 }
 
 // Run executes the generator.
@@ -33,9 +59,11 @@ func (g *Generator) Run() error {
 	log.Println("Generating code for", g.Name)
 
 	steps := []func() error{
+		g.parseSource,
 		g.extractDescription,
 		g.loadTemplate,
 		g.executeTemplate,
+		g.formatSource,
 		g.writeToFile,
 	}
 
@@ -48,10 +76,64 @@ func (g *Generator) Run() error {
 	return nil
 }
 
+func (g *Generator) parseSource() error {
+	dir, err := filepath.Abs(g.Dir)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Parsing", dir)
+
+	pkgs, err := packages.Load(
+		&packages.Config{
+			Mode: parseMode,
+		},
+		dir,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	g.pkgs = pkgs
+	return nil
+}
+
 func (g *Generator) extractDescription() error {
+	for _, pkg := range g.pkgs {
+		for _, f := range pkg.Syntax {
+			for _, decl := range f.Decls {
+				if decl, ok := decl.(*ast.GenDecl); ok {
+					for _, spec := range decl.Specs {
+						spec, ok := spec.(*ast.TypeSpec)
+						if !ok {
+							continue
+						}
+
+						if spec.Name.Name != g.Name {
+							continue
+						}
+
+						d := &Description{
+							Name: g.Name,
+							Pkg: &Package{
+								Path: pkg.PkgPath,
+								Name: pkg.Name,
+							},
+						}
+
+						g.desc = d
+						return nil
+					}
+				}
+			}
+		}
+	}
+
 	g.desc = &Description{
 		Name: g.Name,
 	}
+
 	return nil
 }
 
@@ -79,6 +161,20 @@ func (g *Generator) executeTemplate() error {
 
 	g.buf = new(bytes.Buffer)
 	return compiledTempl.Execute(g.buf, g.desc)
+}
+
+func (g *Generator) formatSource() error {
+	if !g.Format {
+		return nil
+	}
+
+	out, err := imports.Process(g.Output, g.buf.Bytes(), nil)
+	if err != nil {
+		return err
+	}
+
+	g.buf = bytes.NewBuffer(out)
+	return nil
 }
 
 func (g *Generator) writeToFile() error {
