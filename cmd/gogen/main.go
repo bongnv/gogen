@@ -9,7 +9,7 @@ var cli struct {
 	Name     string `kong:"arg,required,help='Name of a Go type'"`
 	Template string `kong:"required,type='existingfile',short='t',help='Path to the template file'"`
 	Output   string `kong:"help='Path to the output',short='o'"`
-	Dir      string `kong:"help='Directory to search for',default='.'"`
+	Dir      string `kong:"short='d',help='Directory to search for',default='.'"`
 	Format   bool   `kong:"short='f',help='Format source code'"`
 }
 

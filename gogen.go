@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	"golang.org/x/tools/go/packages"
@@ -76,13 +77,18 @@ func (g *Generator) Run() error {
 }
 
 func (g *Generator) parseSource() error {
-	log.Println("Parsing", g.Dir)
+	dir, err := filepath.Abs(g.Dir)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Parsing", dir)
 
 	pkgs, err := packages.Load(
 		&packages.Config{
 			Mode: parseMode,
 		},
-		g.Dir,
+		dir,
 	)
 
 	if err != nil {
