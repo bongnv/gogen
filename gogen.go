@@ -9,10 +9,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"text/template"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/imports"
+	goimports "golang.org/x/tools/imports"
 )
 
 var (
@@ -24,12 +25,17 @@ var (
 		packages.NeedTypes |
 		packages.NeedSyntax |
 		packages.NeedTypesInfo
+
+	funcsMap template.FuncMap = template.FuncMap{
+		"Quote": strconv.Quote,
+	}
 )
 
 // Description includes parsed information of a Go name. It will be used to feed data to the template.
 type Description struct {
-	Name string
-	Pkg  *Package
+	Name    string
+	Pkg     *Package
+	Imports []*Package
 }
 
 // Generator is an execution to generate code. Call Run method to trigger the job.
@@ -121,6 +127,14 @@ func (g *Generator) extractDescription() error {
 							},
 						}
 
+						// TODO: support duplicate name
+						for _, p := range pkg.Imports {
+							d.Imports = append(d.Imports, &Package{
+								Name: p.Name,
+								Path: p.PkgPath,
+							})
+						}
+
 						g.desc = d
 						return nil
 					}
@@ -152,6 +166,7 @@ func (g *Generator) loadTemplate() error {
 
 func (g *Generator) executeTemplate() error {
 	compiledTempl, err := template.New("gogen").
+		Funcs(funcsMap).
 		Parse(g.Template)
 
 	if err != nil {
@@ -167,7 +182,7 @@ func (g *Generator) formatSource() error {
 		return nil
 	}
 
-	out, err := imports.Process(g.Output, g.buf.Bytes(), nil)
+	out, err := goimports.Process(g.Output, g.buf.Bytes(), nil)
 	if err != nil {
 		return err
 	}

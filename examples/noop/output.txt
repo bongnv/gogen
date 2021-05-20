@@ -1,3 +1,11 @@
 package noop
 
+import (
+	context "context"
+)
+
 type NoopExample struct{}
+
+func (Noop) Init(ctx context.Context) error {
+	return nil
+}

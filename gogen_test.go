@@ -27,8 +27,8 @@ func Test_Generator_Run_with_source(t *testing.T) {
 	require.NoError(t, err)
 
 	g := &Generator{
-		Dir:  wd,
-		Name: "Generator",
+		Dir:  filepath.Join(wd, "examples", "noop"),
+		Name: "Example",
 	}
 
 	require.NoError(t, g.parseSource())
@@ -36,8 +36,11 @@ func Test_Generator_Run_with_source(t *testing.T) {
 	require.NoError(t, g.extractDescription())
 	require.NotNil(t, g.desc)
 	require.NotNil(t, g.desc.Pkg, "package information must be available")
-	require.Equal(t, "gogen", g.desc.Pkg.Name)
-	require.Equal(t, "github.com/bongnv/gogen", g.desc.Pkg.Path)
+	require.Equal(t, "noop", g.desc.Pkg.Name)
+	require.Equal(t, "github.com/bongnv/gogen/examples/noop", g.desc.Pkg.Path)
+	require.Len(t, g.desc.Imports, 1)
+	require.Equal(t, "context", g.desc.Imports[0].Name)
+	require.Equal(t, "context", g.desc.Imports[0].Path)
 }
 
 func Test_formatSource(t *testing.T) {

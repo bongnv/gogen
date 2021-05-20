@@ -5,5 +5,5 @@ import (
 )
 
 type Example interface {
-	Init(ctx context.Context) (int, error)
+	Init(ctx context.Context) error
 }
