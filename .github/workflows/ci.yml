@@ -13,7 +13,7 @@ env:
 
 jobs:
   lint:
-    name: "Generate test"
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
