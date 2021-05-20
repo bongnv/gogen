@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"go/ast"
 	"io"
-	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -188,5 +187,5 @@ func (g *Generator) writeToFile() error {
 		return err
 	}
 
-	return ioutil.WriteFile(g.Output, g.buf.Bytes(), fs.ModePerm)
+	return ioutil.WriteFile(g.Output, g.buf.Bytes(), 0644)
 }
