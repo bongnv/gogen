@@ -4,6 +4,7 @@ package gogen
 import (
 	"bytes"
 	"go/ast"
+	"go/types"
 	"io"
 	"io/ioutil"
 	"log"
@@ -33,9 +34,25 @@ var (
 
 // Description includes parsed information of a Go name. It will be used to feed data to the template.
 type Description struct {
+	Name        string
+	Pkg         *Package
+	Imports     []*Package
+	IsInterface bool
+	IsStruct    bool
+	Methods     []*Method
+}
+
+// Var is a pair of name and Go type to present a variable.
+type Var struct {
+	Name string
+	Type string
+}
+
+// Method defines a method in Go.
+type Method struct {
 	Name    string
-	Pkg     *Package
-	Imports []*Package
+	Params  []*Var
+	Results []*Var
 }
 
 // Generator is an execution to generate code. Call Run method to trigger the job.
@@ -48,9 +65,11 @@ type Generator struct {
 	TemplateFile string
 	Writer       io.Writer
 
-	buf  *bytes.Buffer
-	desc *Description
-	pkgs []*packages.Package
+	buf      *bytes.Buffer
+	desc     *Description
+	pkg      *packages.Package
+	typeInfo types.Type
+	typeSpec *ast.TypeSpec
 }
 
 // Package presents a Go package.
@@ -65,7 +84,9 @@ func (g *Generator) Run() error {
 
 	steps := []func() error{
 		g.parseSource,
-		g.extractDescription,
+		g.prepareDescription,
+		g.parseImports,
+		g.parseTypeInfo,
 		g.loadTemplate,
 		g.executeTemplate,
 		g.formatSource,
@@ -100,12 +121,7 @@ func (g *Generator) parseSource() error {
 		return err
 	}
 
-	g.pkgs = pkgs
-	return nil
-}
-
-func (g *Generator) extractDescription() error {
-	for _, pkg := range g.pkgs {
+	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
 			for _, decl := range f.Decls {
 				if decl, ok := decl.(*ast.GenDecl); ok {
@@ -119,23 +135,10 @@ func (g *Generator) extractDescription() error {
 							continue
 						}
 
-						d := &Description{
-							Name: g.Name,
-							Pkg: &Package{
-								Path: pkg.PkgPath,
-								Name: pkg.Name,
-							},
-						}
+						g.pkg = pkg
+						g.typeInfo = pkg.TypesInfo.TypeOf(spec.Type)
+						g.typeSpec = spec
 
-						// TODO: support duplicate name
-						for _, p := range pkg.Imports {
-							d.Imports = append(d.Imports, &Package{
-								Name: p.Name,
-								Path: p.PkgPath,
-							})
-						}
-
-						g.desc = d
 						return nil
 					}
 				}
@@ -143,8 +146,37 @@ func (g *Generator) extractDescription() error {
 		}
 	}
 
+	return nil
+}
+
+func (g *Generator) prepareDescription() error {
 	g.desc = &Description{
 		Name: g.Name,
+	}
+
+	if g.pkg == nil {
+		return nil
+	}
+
+	g.desc.Pkg = &Package{
+		Path: g.pkg.PkgPath,
+		Name: g.pkg.Name,
+	}
+
+	return nil
+}
+
+func (g *Generator) parseImports() error {
+	if g.pkg == nil || len(g.pkg.Imports) == 0 {
+		return nil
+	}
+
+	// TODO: support duplicate name
+	for _, p := range g.pkg.Imports {
+		g.desc.Imports = append(g.desc.Imports, &Package{
+			Name: p.Name,
+			Path: p.PkgPath,
+		})
 	}
 
 	return nil
@@ -203,4 +235,48 @@ func (g *Generator) writeToFile() error {
 	}
 
 	return ioutil.WriteFile(g.Output, g.buf.Bytes(), 0644)
+}
+
+func (g *Generator) parseTypeInfo() error {
+	if g.typeInfo == nil {
+		return nil
+	}
+
+	switch v := g.typeInfo.(type) {
+	case *types.Interface:
+		g.desc.IsInterface = true
+		g.desc.Methods = extractMethods(v)
+	case *types.Struct:
+		g.desc.IsStruct = true
+		// TODO: parse struct
+	}
+
+	return nil
+}
+
+func extractMethods(typeInfo *types.Interface) []*Method {
+	methods := make([]*Method, typeInfo.NumExplicitMethods())
+	for i := 0; i < typeInfo.NumExplicitMethods(); i++ {
+		fn := typeInfo.ExplicitMethod(i)
+		singature := fn.Type().(*types.Signature)
+		methods[i] = &Method{
+			Name:    fn.Name(),
+			Params:  extractVariables(singature.Params()),
+			Results: extractVariables(singature.Results()),
+		}
+	}
+	return methods
+}
+
+func extractVariables(tuple *types.Tuple) []*Var {
+	vars := make([]*Var, tuple.Len())
+	for i := tuple.Len() - 1; i >= 0; i-- {
+		currentVar := tuple.At(i)
+		vars[i] = &Var{
+			Name: currentVar.Name(),
+			Type: currentVar.Type().String(),
+		}
+	}
+
+	return vars
 }
