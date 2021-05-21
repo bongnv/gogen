@@ -22,7 +22,7 @@ func Test_Generator_Run_empty(t *testing.T) {
 	require.Equal(t, "Mock is generated.", buf.String())
 }
 
-func Test_Generator_Run_with_source(t *testing.T) {
+func Test_Generator_Run_parse_interface(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -52,10 +52,40 @@ func Test_Generator_Run_with_source(t *testing.T) {
 	require.Equal(t, "Init", initMethod.Name)
 	require.Len(t, initMethod.Params, 1)
 	require.Equal(t, "ctx", initMethod.Params[0].Name)
-	require.Equal(t, "context.Context", initMethod.Params[0].Type)
+	require.Equal(t, "context.Context", initMethod.Params[0].Type.String())
 	require.Len(t, initMethod.Results, 1)
 	require.Equal(t, "", initMethod.Results[0].Name)
-	require.Equal(t, "error", initMethod.Results[0].Type)
+	require.Equal(t, "error", initMethod.Results[0].Type.String())
+}
+
+func Test_Generator_Run_parse_struct(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	g := &Generator{
+		Dir:  filepath.Join(wd, "examples", "getter"),
+		Name: "Example",
+	}
+
+	require.NoError(t, g.parseSource())
+	require.NotNil(t, g.pkg)
+
+	require.NoError(t, g.prepareDescription())
+	require.NotNil(t, g.desc)
+	require.NotNil(t, g.desc.Pkg, "package information must be available")
+	require.Equal(t, "getter", g.desc.Pkg.Name)
+
+	require.NoError(t, g.parseTypeInfo())
+	require.True(t, g.desc.IsStruct)
+	require.Len(t, g.desc.Fields, 3)
+	fields := g.desc.Fields
+	require.Equal(t, "Number", fields[0].Name)
+	require.Equal(t, "int", fields[0].Type.String())
+	require.Equal(t, "String", fields[1].Name)
+	require.Equal(t, "string", fields[1].Type.String())
+	require.Equal(t, "StringPtr", fields[2].Name)
+	require.Equal(t, "*string", fields[2].Type.String())
+	require.True(t, fields[2].Type.IsPointer)
 }
 
 func Test_formatSource(t *testing.T) {

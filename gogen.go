@@ -40,12 +40,30 @@ type Description struct {
 	IsInterface bool
 	IsStruct    bool
 	Methods     []*Method
+	Fields      []*Field
+}
+
+// GoType presents a type in Go
+type GoType struct {
+	Name      string
+	IsPointer bool
+}
+
+// String returns the string presentation.
+func (t GoType) String() string {
+	return t.Name
 }
 
 // Var is a pair of name and Go type to present a variable.
 type Var struct {
 	Name string
-	Type string
+	Type *GoType
+}
+
+// Field is a field in a struct.
+type Field struct {
+	Name string
+	Type *GoType
 }
 
 // Method defines a method in Go.
@@ -248,7 +266,7 @@ func (g *Generator) parseTypeInfo() error {
 		g.desc.Methods = extractMethods(v)
 	case *types.Struct:
 		g.desc.IsStruct = true
-		// TODO: parse struct
+		g.desc.Fields = extractFields(v)
 	}
 
 	return nil
@@ -274,9 +292,33 @@ func extractVariables(tuple *types.Tuple) []*Var {
 		currentVar := tuple.At(i)
 		vars[i] = &Var{
 			Name: currentVar.Name(),
-			Type: currentVar.Type().String(),
+			Type: extractGoType(currentVar.Type()),
 		}
 	}
 
 	return vars
+}
+
+func extractFields(typeInfo *types.Struct) []*Field {
+	fields := make([]*Field, typeInfo.NumFields())
+	for i := typeInfo.NumFields() - 1; i >= 0; i-- {
+		field := typeInfo.Field(i)
+		fields[i] = &Field{
+			Name: field.Name(),
+			Type: extractGoType(field.Type()),
+		}
+	}
+
+	// TODO: parse tags
+
+	return fields
+}
+
+// TODO: implements cache to speed up
+func extractGoType(typeInfo types.Type) *GoType {
+	_, isPointer := typeInfo.(*types.Pointer)
+	return &GoType{
+		Name:      typeInfo.String(),
+		IsPointer: isPointer,
+	}
 }

@@ -1,0 +1,15 @@
+package {{.Pkg.Name}}
+
+{{- if .Imports}}
+import (
+{{- range $impt := .Imports}}
+  {{$impt.Name}} {{$impt.Path | Quote}}
+{{end -}}
+)
+{{end -}}
+
+{{range $field := .Fields}}
+func (s {{.Name}}) Get{{$field.Name}}() {{$field.Type}} {
+    return s.{{$field.Name}}
+}
+{{end}}
