@@ -1,0 +1,13 @@
+package getter
+
+func (s Number) GetNumber() int {
+	return s.Number
+}
+
+func (s String) GetString() string {
+	return s.String
+}
+
+func (s StringPtr) GetStringPtr() *string {
+	return s.StringPtr
+}
