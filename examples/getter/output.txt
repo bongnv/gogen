@@ -7,7 +7,3 @@ func (s Number) GetNumber() int {
 func (s String) GetString() string {
 	return s.String
 }
-
-func (s StringPtr) GetStringPtr() *string {
-	return s.StringPtr
-}

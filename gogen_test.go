@@ -86,6 +86,7 @@ func Test_Generator_Run_parse_struct(t *testing.T) {
 	require.Equal(t, "StringPtr", fields[2].Name)
 	require.Equal(t, "*string", fields[2].Type.String())
 	require.True(t, fields[2].Type.IsPointer)
+	require.Equal(t, "true", fields[2].Tags["skip"])
 }
 
 func Test_formatSource(t *testing.T) {
