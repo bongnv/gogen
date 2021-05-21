@@ -52,10 +52,10 @@ func Test_Generator_Run_parse_interface(t *testing.T) {
 	require.Equal(t, "Init", initMethod.Name)
 	require.Len(t, initMethod.Params, 1)
 	require.Equal(t, "ctx", initMethod.Params[0].Name)
-	require.Equal(t, "context.Context", initMethod.Params[0].Type)
+	require.Equal(t, "context.Context", initMethod.Params[0].Type.String())
 	require.Len(t, initMethod.Results, 1)
 	require.Equal(t, "", initMethod.Results[0].Name)
-	require.Equal(t, "error", initMethod.Results[0].Type)
+	require.Equal(t, "error", initMethod.Results[0].Type.String())
 }
 
 func Test_Generator_Run_parse_struct(t *testing.T) {
