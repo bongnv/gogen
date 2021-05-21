@@ -9,7 +9,9 @@ import (
 {{end -}}
 
 {{range $field := .Fields}}
+{{if not $field.Tags.skip }}
 func (s {{.Name}}) Get{{$field.Name}}() {{$field.Type}} {
     return s.{{$field.Name}}
 }
+{{end}}
 {{end}}

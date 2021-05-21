@@ -64,6 +64,7 @@ type Var struct {
 type Field struct {
 	Name string
 	Type *GoType
+	Tags map[string]string
 }
 
 // Method defines a method in Go.
@@ -266,7 +267,11 @@ func (g *Generator) parseTypeInfo() error {
 		g.desc.Methods = extractMethods(v)
 	case *types.Struct:
 		g.desc.IsStruct = true
-		g.desc.Fields = extractFields(v)
+		fields, err := extractFields(v)
+		if err != nil {
+			return err
+		}
+		g.desc.Fields = fields
 	}
 
 	return nil
@@ -299,19 +304,24 @@ func extractVariables(tuple *types.Tuple) []*Var {
 	return vars
 }
 
-func extractFields(typeInfo *types.Struct) []*Field {
+func extractFields(typeInfo *types.Struct) ([]*Field, error) {
 	fields := make([]*Field, typeInfo.NumFields())
+
 	for i := typeInfo.NumFields() - 1; i >= 0; i-- {
 		field := typeInfo.Field(i)
+		tags, err := extractTags(typeInfo.Tag(i))
+		if err != nil {
+			return nil, err
+		}
+
 		fields[i] = &Field{
 			Name: field.Name(),
 			Type: extractGoType(field.Type()),
+			Tags: tags,
 		}
 	}
 
-	// TODO: parse tags
-
-	return fields
+	return fields, nil
 }
 
 // TODO: implements cache to speed up
