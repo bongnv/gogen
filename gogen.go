@@ -3,6 +3,7 @@ package gogen
 
 import (
 	"bytes"
+	"context"
 	"go/ast"
 	"go/types"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/bongnv/task"
 	"golang.org/x/tools/go/packages"
 	goimports "golang.org/x/tools/imports"
 )
@@ -101,7 +103,8 @@ type Package struct {
 func (g *Generator) Run() error {
 	log.Println("Generating code for", g.Name)
 
-	steps := []func() error{
+	return task.Exec(
+		context.Background(),
 		g.parseSource,
 		g.prepareDescription,
 		g.parseImports,
@@ -110,18 +113,10 @@ func (g *Generator) Run() error {
 		g.executeTemplate,
 		g.formatSource,
 		g.writeToFile,
-	}
-
-	for _, f := range steps {
-		if err := f(); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	)
 }
 
-func (g *Generator) parseSource() error {
+func (g *Generator) parseSource(ctx context.Context) error {
 	dir, err := filepath.Abs(g.Dir)
 	if err != nil {
 		return err
@@ -168,7 +163,7 @@ func (g *Generator) parseSource() error {
 	return nil
 }
 
-func (g *Generator) prepareDescription() error {
+func (g *Generator) prepareDescription(ctx context.Context) error {
 	g.desc = &Description{
 		Name: g.Name,
 	}
@@ -185,7 +180,7 @@ func (g *Generator) prepareDescription() error {
 	return nil
 }
 
-func (g *Generator) parseImports() error {
+func (g *Generator) parseImports(ctx context.Context) error {
 	if g.pkg == nil || len(g.pkg.Imports) == 0 {
 		return nil
 	}
@@ -201,7 +196,7 @@ func (g *Generator) parseImports() error {
 	return nil
 }
 
-func (g *Generator) loadTemplate() error {
+func (g *Generator) loadTemplate(ctx context.Context) error {
 	if g.Template != "" {
 		return nil
 	}
@@ -215,7 +210,7 @@ func (g *Generator) loadTemplate() error {
 	return nil
 }
 
-func (g *Generator) executeTemplate() error {
+func (g *Generator) executeTemplate(ctx context.Context) error {
 	compiledTempl, err := template.New("gogen").
 		Funcs(funcsMap).
 		Parse(g.Template)
@@ -228,7 +223,7 @@ func (g *Generator) executeTemplate() error {
 	return compiledTempl.Execute(g.buf, g.desc)
 }
 
-func (g *Generator) formatSource() error {
+func (g *Generator) formatSource(ctx context.Context) error {
 	if !g.Format {
 		return nil
 	}
@@ -242,7 +237,7 @@ func (g *Generator) formatSource() error {
 	return nil
 }
 
-func (g *Generator) writeToFile() error {
+func (g *Generator) writeToFile(ctx context.Context) error {
 	if g.Writer != nil {
 		_, err := g.buf.WriteTo(g.Writer)
 		return err
@@ -256,7 +251,7 @@ func (g *Generator) writeToFile() error {
 	return ioutil.WriteFile(g.Output, g.buf.Bytes(), 0644)
 }
 
-func (g *Generator) parseTypeInfo() error {
+func (g *Generator) parseTypeInfo(ctx context.Context) error {
 	if g.typeInfo == nil {
 		return nil
 	}

@@ -2,6 +2,7 @@ package gogen
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,6 +24,8 @@ func Test_Generator_Run_empty(t *testing.T) {
 }
 
 func Test_Generator_Run_parse_interface(t *testing.T) {
+	ctx := context.Background()
+
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -31,21 +34,21 @@ func Test_Generator_Run_parse_interface(t *testing.T) {
 		Name: "Example",
 	}
 
-	require.NoError(t, g.parseSource())
+	require.NoError(t, g.parseSource(ctx))
 	require.NotNil(t, g.pkg)
 
-	require.NoError(t, g.prepareDescription())
+	require.NoError(t, g.prepareDescription(ctx))
 	require.NotNil(t, g.desc)
 	require.NotNil(t, g.desc.Pkg, "package information must be available")
 	require.Equal(t, "noop", g.desc.Pkg.Name)
 	require.Equal(t, "github.com/bongnv/gogen/examples/noop", g.desc.Pkg.Path)
 
-	require.NoError(t, g.parseImports())
+	require.NoError(t, g.parseImports(ctx))
 	require.Len(t, g.desc.Imports, 1)
 	require.Equal(t, "context", g.desc.Imports[0].Name)
 	require.Equal(t, "context", g.desc.Imports[0].Path)
 
-	require.NoError(t, g.parseTypeInfo())
+	require.NoError(t, g.parseTypeInfo(ctx))
 	require.True(t, g.desc.IsInterface)
 	require.Len(t, g.desc.Methods, 1)
 	initMethod := g.desc.Methods[0]
@@ -59,6 +62,8 @@ func Test_Generator_Run_parse_interface(t *testing.T) {
 }
 
 func Test_Generator_Run_parse_struct(t *testing.T) {
+	ctx := context.Background()
+
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -67,15 +72,15 @@ func Test_Generator_Run_parse_struct(t *testing.T) {
 		Name: "Example",
 	}
 
-	require.NoError(t, g.parseSource())
+	require.NoError(t, g.parseSource(ctx))
 	require.NotNil(t, g.pkg)
 
-	require.NoError(t, g.prepareDescription())
+	require.NoError(t, g.prepareDescription(ctx))
 	require.NotNil(t, g.desc)
 	require.NotNil(t, g.desc.Pkg, "package information must be available")
 	require.Equal(t, "getter", g.desc.Pkg.Name)
 
-	require.NoError(t, g.parseTypeInfo())
+	require.NoError(t, g.parseTypeInfo(ctx))
 	require.True(t, g.desc.IsStruct)
 	require.Len(t, g.desc.Fields, 3)
 	fields := g.desc.Fields
@@ -104,6 +109,6 @@ func Test_formatSource(t *testing.T) {
 		Format: true,
 		buf:    bytes.NewBufferString(content),
 	}
-	require.NoError(t, g.formatSource())
+	require.NoError(t, g.formatSource(context.Background()))
 	require.Equal(t, "package gogen\n\ntype Service interface{}\n", g.buf.String(), "content must be formatted")
 }
