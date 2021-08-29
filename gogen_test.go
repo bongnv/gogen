@@ -101,7 +101,7 @@ func Test_formatSource(t *testing.T) {
 	output := filepath.Join(wd, "mock_file.go")
 	content := `
 	package gogen
-	
+
 	type Service interface {}`
 
 	g := &Generator{

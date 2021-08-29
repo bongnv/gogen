@@ -11,7 +11,7 @@ type Noop{{.Name}} struct {}
 {{range $i, $method := .Methods}}
 func (Noop) {{$method.Name}}(
   {{- range $param := $method.Params -}}
-    {{if $i}},{{end}}{{$param.Name}} {{$param.Type}} 
+    {{if $i}},{{end}}{{$param.Name}} {{$param.Type}}
   {{- end -}}
   ) (
     {{- range $ret := $method.Results -}}

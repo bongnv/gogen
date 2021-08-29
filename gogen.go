@@ -276,11 +276,11 @@ func extractMethods(typeInfo *types.Interface) []*Method {
 	methods := make([]*Method, typeInfo.NumExplicitMethods())
 	for i := 0; i < typeInfo.NumExplicitMethods(); i++ {
 		fn := typeInfo.ExplicitMethod(i)
-		singature := fn.Type().(*types.Signature)
+		signature := fn.Type().(*types.Signature)
 		methods[i] = &Method{
 			Name:    fn.Name(),
-			Params:  extractVariables(singature.Params()),
-			Results: extractVariables(singature.Results()),
+			Params:  extractVariables(signature.Params()),
+			Results: extractVariables(signature.Results()),
 		}
 	}
 	return methods
